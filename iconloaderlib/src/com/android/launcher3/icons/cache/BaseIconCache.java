@@ -36,6 +36,7 @@ import android.content.res.Resources;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteException;
+import android.database.sqlite.SQLiteReadOnlyDatabaseException;
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.Config;
 import android.graphics.BitmapFactory;
@@ -59,6 +60,7 @@ import androidx.annotation.WorkerThread;
 import com.android.launcher3.icons.BaseIconFactory;
 import com.android.launcher3.icons.BaseIconFactory.IconOptions;
 import com.android.launcher3.icons.BitmapInfo;
+import com.android.launcher3.icons.IconProvider;
 import com.android.launcher3.util.ComponentKey;
 import com.android.launcher3.util.FlagOp;
 import com.android.launcher3.util.SQLiteCacheHelper;
@@ -102,6 +104,9 @@ public abstract class BaseIconCache {
     protected final PackageManager mPackageManager;
 
     @NonNull
+    protected final IconProvider mIconProvider;
+
+    @NonNull
     private final Map<ComponentKey, CacheEntry> mCache;
 
     @NonNull
@@ -137,8 +142,16 @@ public abstract class BaseIconCache {
     public BaseIconCache(@NonNull final Context context, @Nullable final String dbFileName,
             @NonNull final Looper bgLooper, final int iconDpi, final int iconPixelSize,
             final boolean inMemoryCache) {
+        this(context, dbFileName, bgLooper, iconDpi, iconPixelSize, inMemoryCache,
+                new IconProvider(context));
+    }
+
+    public BaseIconCache(@NonNull final Context context, @Nullable final String dbFileName,
+            @NonNull final Looper bgLooper, final int iconDpi, final int iconPixelSize,
+            final boolean inMemoryCache, @NonNull IconProvider iconProvider) {
         mContext = context;
         mDbFileName = dbFileName;
+        mIconProvider = iconProvider;
         mPackageManager = context.getPackageManager();
         mBgLooper = bgLooper;
         mWorkerHandler = new Handler(mBgLooper);
@@ -187,13 +200,24 @@ public abstract class BaseIconCache {
     }
 
     private synchronized void updateIconParamsBg(final int iconDpi, final int iconPixelSize) {
-        mIconDpi = iconDpi;
-        mDefaultIcon = null;
-        mUserFlagOpMap.clear();
-        mIconDb.clear();
-        mIconDb.close();
-        mIconDb = new IconDB(mContext, mDbFileName, iconPixelSize);
-        mCache.clear();
+        try {
+            mIconDpi = iconDpi;
+            mDefaultIcon = null;
+            mUserFlagOpMap.clear();
+            mIconDb.clear();
+            mIconDb.close();
+            mIconDb = new IconDB(mContext, mDbFileName, iconPixelSize);
+            mCache.clear();
+        } catch (SQLiteReadOnlyDatabaseException e) {
+            // This is known to happen during repeated backup and restores, if the Launcher is in
+            // restricted mode. When the launcher is loading and the backup restore is being cleared
+            // there can be a conflict where one DB is trying to delete the DB file, and the other
+            // is attempting to write to it. The effect is that launcher crashes, then the backup /
+            // restore process fails, then the user's home screen icons fail to restore. Adding this
+            // try / catch will stop the crash, and LoaderTask will sanitize any residual icon data,
+            // leading to a completed backup / restore and a better experience for our customers.
+            Log.e(TAG, "failed to clear the launcher's icon db or cache.", e);
+        }
     }
 
     @Nullable
@@ -290,7 +314,11 @@ public abstract class BaseIconCache {
 
     @NonNull
     protected String getIconSystemState(@Nullable final String packageName) {
-        return mSystemState;
+        return mIconProvider.getSystemStateForPackage(mSystemState, packageName);
+    }
+
+    public IconProvider getIconProvider() {
+        return mIconProvider;
     }
 
     public CharSequence getUserBadgedLabel(CharSequence label, UserHandle user) {
@@ -334,7 +362,7 @@ public abstract class BaseIconCache {
         }
         if (entry == null) {
             entry = new CacheEntry();
-            entry.bitmap = cachingLogic.loadIcon(mContext, object);
+            entry.bitmap = cachingLogic.loadIcon(mContext, this, object);
         }
         // Icon can't be loaded from cachingLogic, which implies alternative icon was loaded
         // (e.g. fallback icon, default icon). So we drop here since there's no point in caching
@@ -477,7 +505,7 @@ public abstract class BaseIconCache {
             final boolean usePackageTitle, @NonNull final ComponentName componentName,
             @NonNull final UserHandle user) {
         if (object != null) {
-            entry.bitmap = cachingLogic.loadIcon(mContext, object);
+            entry.bitmap = cachingLogic.loadIcon(mContext, this, object);
         } else {
             if (usePackageIcon) {
                 CacheEntry packageEntry = getEntryForPackageLocked(
