@@ -300,9 +300,8 @@ internal class TraceContextElement(
      * `^` is a suspension point)
      */
     @SuppressLint("UnclosedTrace")
-    public override fun updateThreadContext(context: CoroutineContext): TraceData? {
+    override fun updateThreadContext(context: CoroutineContext): TraceData? {
         val oldState = traceThreadLocal.get()
-        //        val coroutineName = context[CoroutineTraceName]?.name ?: ""
         debug { "TCE#update;$nameWithId oldState=${oldState?.currentId}" }
         if (oldState !== contextTraceData) {
             traceThreadLocal.set(contextTraceData)
@@ -339,9 +338,11 @@ internal class TraceContextElement(
      * OR
      *
      * ```
-     * Thread #1 |                                 [restoreThreadContext]
+     * Thread #1 |  [update].x..^  [   ...    restore    ...   ]               [update].x..^[restore]
      * --------------------------------------------------------------------------------------------
-     * Thread #2 |     [updateThreadContext]...x....x..^[restoreThreadContext]
+     * Thread #2 |                 [update]...x....x..^[restore]
+     * --------------------------------------------------------------------------------------------
+     * Thread #3 |                                     [ ... update ... ] ....^  [restore]
      * ```
      *
      * (`...` indicate coroutine body is running; whitespace indicates the thread is not scheduled;
@@ -349,20 +350,22 @@ internal class TraceContextElement(
      *
      * ```
      */
-    public override fun restoreThreadContext(context: CoroutineContext, oldState: TraceData?) {
+    override fun restoreThreadContext(context: CoroutineContext, oldState: TraceData?) {
         debug { "TCE#restore;$nameWithId restoring=${oldState?.currentId}" }
         // We not use the `TraceData` object here because it may have been modified on another
         // thread after the last suspension point. This is why we use a [TraceStateHolder]:
         // so we can end the correct number of trace sections, restoring the thread to its state
         // prior to the last call to [updateThreadContext].
         if (oldState !== traceThreadLocal.get()) {
-            contextTraceData?.endAllOnThread()
+            if (Trace.isTagEnabled(Trace.TRACE_TAG_APP)) {
+                contextTraceData?.endAllOnThread()
+                Trace.traceEnd(Trace.TRACE_TAG_APP) // end: coroutineTraceName
+            }
             traceThreadLocal.set(oldState)
-            Trace.traceEnd(Trace.TRACE_TAG_APP) // end: coroutineTraceName
         }
     }
 
-    public override fun copyForChild(): CopyableThreadContextElement<TraceData?> {
+    override fun copyForChild(): CopyableThreadContextElement<TraceData?> {
         debug { copyForChildTraceMessage }
         try {
             Trace.traceBegin(Trace.TRACE_TAG_APP, copyForChildTraceMessage)
@@ -374,9 +377,7 @@ internal class TraceContextElement(
         }
     }
 
-    public override fun mergeForChild(
-        overwritingElement: CoroutineContext.Element
-    ): CoroutineContext {
+    override fun mergeForChild(overwritingElement: CoroutineContext.Element): CoroutineContext {
         debug { mergeForChildTraceMessage }
         try {
             Trace.traceBegin(Trace.TRACE_TAG_APP, mergeForChildTraceMessage)

@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+@file:OptIn(DelicateCoroutinesApi::class, ExperimentalCoroutinesApi::class)
+
 package com.android.test.tracing.coroutines
 
 import android.platform.test.annotations.EnableFlags
@@ -26,10 +28,14 @@ import com.android.app.tracing.coroutines.nameCoroutine
 import com.android.app.tracing.coroutines.traceCoroutine
 import com.android.app.tracing.coroutines.withContextTraced
 import com.android.systemui.Flags.FLAG_COROUTINE_TRACING
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.plus
 import kotlinx.coroutines.withContext
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -151,7 +157,7 @@ class CoroutineTracingTest : TestBase() {
     fun withContext_correctUsage() =
         runTest(finalEvent = 4) {
             expect(1, "1^main")
-            withContextTraced("inside-withContext") {
+            withContextTraced("inside-withContext", EmptyCoroutineContext) {
                 assertTrue(coroutineContext[CoroutineTraceName] is TraceContextElement)
                 expect(2, "1^main", "inside-withContext")
                 delay(1)
