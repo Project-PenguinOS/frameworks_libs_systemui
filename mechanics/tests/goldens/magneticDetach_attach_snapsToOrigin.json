@@ -34,8 +34,7 @@
     496,
     512,
     528,
-    544,
-    560
+    544
   ],
   "features": [
     {
@@ -62,7 +61,6 @@
         15,
         10,
         5,
-        0,
         0,
         0,
         0,
@@ -118,7 +116,6 @@
         "Min",
         "Min",
         "Min",
-        "Min",
         "Min"
       ]
     },
@@ -136,31 +133,30 @@
         65,
         60,
         55,
-        50,
-        43.38443,
-        36.351646,
-        29.990938,
-        24.672552,
-        20.412388,
-        17.074236,
-        14.475905,
-        12.440355,
-        6.0429263,
-        0.2618156,
-        -0.13511403,
-        -0.30368266,
-        -0.34483594,
-        -0.32143384,
-        -0.27079266,
-        -0.21369539,
-        -0.16064009,
-        -0.116027184,
-        -0.080867365,
-        -0.054464284,
-        -0.035410874,
-        -0.022142237,
-        -0.013213158,
-        -0.0074128704,
+        46.603424,
+        42.153717,
+        36.203827,
+        30.321402,
+        25.1608,
+        20.901463,
+        17.4976,
+        14.814271,
+        12.6970415,
+        6.739443,
+        1.0775535,
+        0.635472,
+        0.35061052,
+        0.17432979,
+        0.07051067,
+        0.013341078,
+        -0.014990943,
+        -0.02636234,
+        -0.028412364,
+        -0.025858387,
+        -0.02147111,
+        -0.016770272,
+        -0.012503948,
+        -0.008967604,
         0
       ]
     },
@@ -202,7 +198,6 @@
         0,
         0,
         0,
-        0,
         0
       ]
     },
@@ -219,72 +214,68 @@
           "dampingRatio": 1
         },
         {
-          "stiffness": 800,
-          "dampingRatio": 0.95
-        },
-        {
-          "stiffness": 800,
-          "dampingRatio": 0.95
-        },
-        {
-          "stiffness": 800,
-          "dampingRatio": 0.95
-        },
-        {
-          "stiffness": 800,
-          "dampingRatio": 0.95
-        },
-        {
-          "stiffness": 800,
-          "dampingRatio": 0.95
-        },
-        {
-          "stiffness": 800,
-          "dampingRatio": 0.95
-        },
-        {
-          "stiffness": 800,
-          "dampingRatio": 0.95
-        },
-        {
-          "stiffness": 800,
-          "dampingRatio": 0.95
-        },
-        {
-          "stiffness": 800,
-          "dampingRatio": 0.95
-        },
-        {
-          "stiffness": 800,
-          "dampingRatio": 0.95
-        },
-        {
-          "stiffness": 800,
-          "dampingRatio": 0.95
-        },
-        {
-          "stiffness": 800,
-          "dampingRatio": 0.95
-        },
-        {
-          "stiffness": 800,
-          "dampingRatio": 0.95
-        },
-        {
-          "stiffness": 800,
-          "dampingRatio": 0.95
-        },
-        {
-          "stiffness": 800,
-          "dampingRatio": 0.95
-        },
-        {
-          "stiffness": 800,
-          "dampingRatio": 0.95
+          "stiffness": 700,
+          "dampingRatio": 0.9
         },
         {
           "stiffness": 700,
           "dampingRatio": 0.9
+        },
+        {
+          "stiffness": 700,
+          "dampingRatio": 0.9
+        },
+        {
+          "stiffness": 700,
+          "dampingRatio": 0.9
+        },
+        {
+          "stiffness": 700,
+          "dampingRatio": 0.9
+        },
+        {
+          "stiffness": 700,
+          "dampingRatio": 0.9
+        },
+        {
+          "stiffness": 700,
+          "dampingRatio": 0.9
+        },
+        {
+          "stiffness": 700,
+          "dampingRatio": 0.9
+        },
+        {
+          "stiffness": 800,
+          "dampingRatio": 0.95
+        },
+        {
+          "stiffness": 800,
+          "dampingRatio": 0.95
+        },
+        {
+          "stiffness": 800,
+          "dampingRatio": 0.95
+        },
+        {
+          "stiffness": 800,
+          "dampingRatio": 0.95
+        },
+        {
+          "stiffness": 800,
+          "dampingRatio": 0.95
+        },
+        {
+          "stiffness": 800,
+          "dampingRatio": 0.95
+        },
+        {
+          "stiffness": 800,
+          "dampingRatio": 0.95
+        },
+        {
+          "stiffness": 800,
+          "dampingRatio": 0.95
         },
         {
           "stiffness": 700,
@@ -370,7 +361,6 @@
         true,
         true,
         true,
-        false,
         false,
         false,
         false,

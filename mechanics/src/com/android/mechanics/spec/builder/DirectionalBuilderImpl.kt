@@ -30,7 +30,7 @@ import com.android.mechanics.spring.SpringParameters
  *
  * Clients must use [directionalMotionSpec] instead.
  */
-internal class DirectionalBuilderImpl(
+internal open class DirectionalBuilderImpl(
     override val defaultSpring: SpringParameters,
     baseSemantics: List<SemanticValue<*>>,
 ) : DirectionalBuilderScope {
@@ -58,7 +58,7 @@ internal class DirectionalBuilderImpl(
         initialSemantics.forEach { semantic ->
             val existingBuilder = semantics.firstOrNull { it.key == semantic.key }
             if (existingBuilder != null) {
-                existingBuilder.backfill(mappings.size)
+                existingBuilder.backfill(mappings.size - 1)
                 existingBuilder.append(semantic.value)
             } else {
                 SegmentSemanticValuesBuilder(semantic).also { semantics.add(it) }
@@ -87,7 +87,7 @@ internal class DirectionalBuilderImpl(
             check(mappings.size == breakpoints.size)
         }
 
-        if (key == Breakpoint.maxLimit.key) {
+        if (key == BreakpointKey.MaxLimit) {
             check(targetValue.isNaN()) { "cant specify target value for last segment" }
             check(semantics.isEmpty()) { "cant specify semantics for last breakpoint" }
         } else {
@@ -330,42 +330,18 @@ internal class DirectionalBuilderImpl(
         guarantee: Guarantee,
     ): Breakpoint {
         val breakpoint =
-            if (breakpointKey == Breakpoint.maxLimit.key) {
-                check(breakpointPosition == Float.POSITIVE_INFINITY)
-                Breakpoint.maxLimit
-            } else {
-                check(breakpointPosition.isFinite())
-                Breakpoint(checkNotNull(breakpointKey), breakpointPosition, springSpec, guarantee)
-            }
+            Breakpoint.create(
+                checkNotNull(breakpointKey),
+                breakpointPosition,
+                springSpec,
+                guarantee,
+            )
 
         breakpoints.add(breakpoint)
         breakpointPosition = Float.NaN
         breakpointKey = null
 
         return breakpoint
-    }
-
-    private fun completeImpl() {
-        if (breakpoints.last() == Breakpoint.maxLimit) {
-            return
-        }
-
-        check(targetValue.isNaN()) { "cant specify target value for last segment" }
-
-        if (!fractionalMapping.isNaN()) {
-            check(!sourceValue.isNaN())
-
-            val sourcePosition = breakpoints.last().position
-
-            mappings.add(
-                Mapping.Linear(
-                    fractionalMapping,
-                    sourceValue - (sourcePosition * fractionalMapping),
-                )
-            )
-        }
-
-        breakpoints.add(Breakpoint.maxLimit)
     }
 }
 
