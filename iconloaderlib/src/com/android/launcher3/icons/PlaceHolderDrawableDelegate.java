@@ -22,12 +22,9 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
-import android.graphics.Path;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
 import android.graphics.Rect;
-import android.graphics.drawable.AdaptiveIconDrawable;
-import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 
 import androidx.annotation.NonNull;
@@ -38,34 +35,25 @@ import androidx.core.graphics.ColorUtils;
  */
 public class PlaceHolderDrawableDelegate implements FastBitmapDrawableDelegate {
 
-    // Path in [0, 100] bounds.
-    private final Path mProgressPath;
+    private final IconShape mIconShape;
     private final Paint mPaint;
 
-    public PlaceHolderDrawableDelegate(BitmapInfo info, Paint paint, int loadingColor) {
-        mProgressPath = getDefaultPath();
+    public PlaceHolderDrawableDelegate(BitmapInfo info, IconShape iconShape, Paint paint,
+            int loadingColor) {
+        mIconShape = iconShape;
         mPaint = paint;
         paint.setColor(ColorUtils.compositeColors(loadingColor, info.color));
     }
 
-    /**
-     * Gets the current default icon mask {@link Path}.
-     * @return Shaped {@link Path} scaled to [0, 0, 100, 100] bounds
-     */
-    private Path getDefaultPath() {
-        AdaptiveIconDrawable drawable = new AdaptiveIconDrawable(
-                new ColorDrawable(Color.BLACK), new ColorDrawable(Color.BLACK));
-        drawable.setBounds(0, 0, 100, 100);
-        return new Path(drawable.getIconMask());
-    }
-
     @Override
-    public void drawContent(@NonNull BitmapInfo info, @NonNull Canvas canvas, @NonNull Rect bounds,
-            @NonNull Paint paint) {
+    public void drawContent(@NonNull BitmapInfo info,
+            @NonNull FastBitmapDrawable host,
+            @NonNull Canvas canvas, @NonNull Rect bounds, @NonNull Paint paint) {
         int saveCount = canvas.save();
+        float pathSize = mIconShape.pathSize;
         canvas.translate(bounds.left, bounds.top);
-        canvas.scale(bounds.width() / 100f, bounds.height() / 100f);
-        canvas.drawPath(mProgressPath, paint);
+        canvas.scale(bounds.width() / pathSize, bounds.height() / pathSize);
+        canvas.drawPath(mIconShape.path, paint);
         canvas.restoreToCount(saveCount);
     }
 
@@ -91,7 +79,6 @@ public class PlaceHolderDrawableDelegate implements FastBitmapDrawableDelegate {
         iconUpdateAnimation.start();
     }
 
-
     public static class PlaceHolderDelegateFactory implements DelegateFactory {
 
         private final int mLoadingColor;
@@ -103,8 +90,9 @@ public class PlaceHolderDrawableDelegate implements FastBitmapDrawableDelegate {
         @NonNull
         @Override
         public FastBitmapDrawableDelegate newDelegate(@NonNull BitmapInfo bitmapInfo,
-                @NonNull Paint paint, @NonNull FastBitmapDrawable host) {
-            return new PlaceHolderDrawableDelegate(bitmapInfo, paint, mLoadingColor);
+                @NonNull IconShape iconShape, @NonNull Paint paint,
+                    @NonNull FastBitmapDrawable host) {
+            return new PlaceHolderDrawableDelegate(bitmapInfo, iconShape, paint, mLoadingColor);
         }
     }
 }
