@@ -90,46 +90,30 @@ data class BitmapInfo(
         context: Context,
         @DrawableCreationFlags creationFlags: Int = 0,
         iconShape: IconShape? = null,
-    ): FastBitmapDrawable {
-        val drawable: FastBitmapDrawable =
-            if (isLowRes) {
-                FastBitmapDrawable(
-                    this,
-                    iconShape ?: defaultIconShape,
-                    PlaceHolderDelegateFactory(context),
-                )
-            } else if (
-                (creationFlags and FLAG_THEMED) != 0 &&
-                    themedBitmap != null &&
-                    themedBitmap !== ThemedBitmap.NOT_SUPPORTED
-            ) {
-                themedBitmap.newDrawable(this, context, iconShape ?: defaultIconShape)
-            } else {
-                FastBitmapDrawable(this, iconShape ?: defaultIconShape, delegateFactory)
-            }
-        applyFlags(context, drawable, creationFlags)
-        return drawable
-    }
-
-    private fun applyFlags(
-        context: Context,
-        drawable: FastBitmapDrawable,
-        @DrawableCreationFlags creationFlags: Int,
-    ) {
-        drawable.disabledAlpha = GraphicsUtils.getFloat(context, R.attr.disabledIconAlpha, 1f)
-        drawable.creationFlags = creationFlags
-        if ((creationFlags and FLAG_NO_BADGE) == 0) {
-            val badge =
-                getBadgeDrawable(
-                    context,
-                    (creationFlags and FLAG_THEMED) != 0,
-                    (creationFlags and FLAG_SKIP_USER_BADGE) != 0,
-                )
-            if (badge != null) {
-                drawable.badge = badge
-            }
-        }
-    }
+    ) =
+        FastBitmapDrawable(
+            info = this,
+            iconShape = iconShape ?: defaultIconShape,
+            delegateFactory =
+                when {
+                    isLowRes -> PlaceHolderDelegateFactory(context)
+                    creationFlags.hasMask(FLAG_THEMED) &&
+                        themedBitmap != null &&
+                        themedBitmap !== ThemedBitmap.NOT_SUPPORTED ->
+                        themedBitmap.newDelegateFactory(this, context)
+                    else -> delegateFactory
+                },
+            disabledAlpha = GraphicsUtils.getFloat(context, R.attr.disabledIconAlpha, 1f),
+            creationFlags = creationFlags,
+            badge =
+                if (!creationFlags.hasMask(FLAG_NO_BADGE)) {
+                    getBadgeDrawable(
+                        context,
+                        creationFlags.hasMask(FLAG_THEMED),
+                        creationFlags.hasMask(FLAG_SKIP_USER_BADGE),
+                    )
+                } else null,
+        )
 
     /**
      * Gets Badge drawable based on current flags
@@ -173,13 +157,13 @@ data class BitmapInfo(
     /** Returns information about the badge to apply based on current flags. */
     fun getBadgeDrawableInfo(): BadgeDrawableInfo? {
         return when {
-            (flags and FLAG_INSTANT) != 0 ->
+            flags.hasMask(FLAG_INSTANT) ->
                 BadgeDrawableInfo(R.drawable.ic_instant_app_badge, R.color.badge_tint_instant)
-            (flags and FLAG_WORK) != 0 ->
+            flags.hasMask(FLAG_WORK) ->
                 BadgeDrawableInfo(R.drawable.ic_work_app_badge, R.color.badge_tint_work)
-            (flags and FLAG_CLONE) != 0 ->
+            flags.hasMask(FLAG_CLONE) ->
                 BadgeDrawableInfo(R.drawable.ic_clone_app_badge, R.color.badge_tint_clone)
-            (flags and FLAG_PRIVATE) != 0 ->
+            flags.hasMask(FLAG_PRIVATE) ->
                 BadgeDrawableInfo(
                     R.drawable.ic_private_profile_app_badge,
                     R.color.badge_tint_private,
@@ -213,12 +197,15 @@ data class BitmapInfo(
     companion object {
         const val TAG: String = "BitmapInfo"
 
-        // BitmapInfo flags
+        // Persisted BitmapInfo flags.
+        // Reset the cache by changing RELEASE_VERSION whenever making any changes here.
+        // LINT.IfChange
         const val FLAG_WORK: Int = 1 shl 0
         const val FLAG_INSTANT: Int = 1 shl 1
         const val FLAG_CLONE: Int = 1 shl 2
         const val FLAG_PRIVATE: Int = 1 shl 3
         const val FLAG_FULL_BLEED: Int = 1 shl 4
+        // LINT.ThenChange(src/com/android/launcher3/icons/cache/BaseIconCache.kt:cache_release_version)
 
         // Drawable creation flags
         const val FLAG_THEMED: Int = 1 shl 0
@@ -237,5 +224,7 @@ data class BitmapInfo(
         fun of(bitmap: Bitmap, color: Int, defaultShape: IconShape = IconShape.EMPTY): BitmapInfo {
             return BitmapInfo(icon = bitmap, color = color, defaultIconShape = defaultShape)
         }
+
+        private inline fun Int.hasMask(mask: Int) = (this and mask) != 0
     }
 }
