@@ -17,6 +17,7 @@
 package com.android.mechanics
 
 import androidx.compose.runtime.FloatState
+import androidx.compose.runtime.annotation.FrequentlyChangingValue
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -128,7 +129,7 @@ class MotionValue(
     spec: () -> MotionSpec,
     label: String? = null,
     stableThreshold: Float = StableThresholdEffect,
-) : FloatState {
+) : MotionValueState {
     private val impl =
         ObservableComputations(
             inputProvider = input,
@@ -139,10 +140,11 @@ class MotionValue(
         )
 
     /** The [MotionSpec] describing the mapping of this [MotionValue]'s input to the output. */
-    val spec: MotionSpec by impl::spec
+    // TODO(b/441041846): This should not change frequently
+    @get:FrequentlyChangingValue val spec: MotionSpec by impl::spec
 
     /** Animated [output] value. */
-    val output: Float by impl::output
+    @get:FrequentlyChangingValue override val output: Float by impl::computedOutput
 
     /**
      * [output] value, but without animations.
@@ -151,13 +153,15 @@ class MotionValue(
      *
      * While [isStable], [outputTarget] and [output] are the same value.
      */
-    val outputTarget: Float by impl::outputTarget
+    // TODO(b/441041846): This should not change frequently
+    @get:FrequentlyChangingValue override val outputTarget: Float by impl::computedOutputTarget
 
     /** The [output] exposed as [FloatState]. */
-    override val floatValue: Float by impl::output
+    @get:FrequentlyChangingValue override val floatValue: Float by impl::computedOutput
 
     /** Whether an animation is currently running. */
-    val isStable: Boolean by impl::isStable
+    // TODO(b/441041846): This should not change frequently
+    @get:FrequentlyChangingValue override val isStable: Boolean by impl::computedIsStable
 
     /**
      * Whether the output can change its value.
@@ -167,19 +171,24 @@ class MotionValue(
      * output is guaranteed not to change unless the [spec] or the input (enough to change segments)
      * changes. This can be used to avoid unnecessary work like recomposition or re-measurement.
      */
-    val isOutputFixed: Boolean by impl::isOutputFixed
+    // TODO(b/441041846): This should not change frequently
+    @get:FrequentlyChangingValue val isOutputFixed: Boolean by impl::computedIsOutputFixed
 
     /**
      * The current value for the [SemanticKey].
      *
      * `null` if not defined in the spec.
      */
-    operator fun <T> get(key: SemanticKey<T>): T? {
-        return impl.semanticState(key)
+    // TODO(b/441041846): This should not change frequently
+    @FrequentlyChangingValue
+    override operator fun <T> get(key: SemanticKey<T>): T? {
+        return impl.computedSemanticState(key)
     }
 
     /** The current segment used to compute the output. */
-    val segmentKey: SegmentKey
+    // TODO(b/441041846): This should not change frequently
+    @get:FrequentlyChangingValue
+    override val segmentKey: SegmentKey
         get() = impl.currentComputedValues.segment.key
 
     /**
@@ -214,7 +223,7 @@ class MotionValue(
             impl.keepRunning { continueRunning.invoke(this@MotionValue) }
         }
 
-    val label: String? by impl::label
+    override val label: String? by impl::label
 
     companion object {
         /** Creates a [MotionValue] whose [currentInput] is the animated [output] of [source]. */
@@ -252,7 +261,7 @@ class MotionValue(
      *
      * The returned [DebugInspector] must be [DebugInspector.dispose]d when no longer needed.
      */
-    fun debugInspector(): DebugInspector {
+    override fun debugInspector(): DebugInspector {
         if (debugInspectorRefCount.getAndIncrement() == 0) {
             impl.debugInspector =
                 DebugInspector(
@@ -264,7 +273,7 @@ class MotionValue(
                         impl.lastSpringState,
                         impl.lastSegment,
                         impl.lastAnimation,
-                        impl.isOutputFixed,
+                        impl.computedIsOutputFixed,
                     ),
                     impl.isActive,
                     impl.debugIsAnimating,
@@ -449,7 +458,7 @@ private class ObservableComputations(
                             capturedSpringState,
                             capturedSegment,
                             capturedAnimation,
-                            isOutputFixed,
+                            computedIsOutputFixed,
                         )
                 }
 
