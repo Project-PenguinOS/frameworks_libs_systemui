@@ -25,7 +25,6 @@ import androidx.compose.runtime.mutableStateSetOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
-import com.android.mechanics.MotionValue.Companion.StableThresholdSpatial
 import com.android.mechanics.debug.DebugInspector
 import com.android.mechanics.debug.FrameData
 import com.android.mechanics.impl.Computations
@@ -37,7 +36,6 @@ import com.android.mechanics.spec.SegmentData
 import com.android.mechanics.spec.SegmentKey
 import com.android.mechanics.spec.SemanticKey
 import com.android.mechanics.spring.SpringState
-import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.DisposableHandle
 import kotlinx.coroutines.flow.first
@@ -57,7 +55,7 @@ sealed interface ManagedMotionValue : MotionValueState, DisposableHandle
 class MotionValueCollection(
     internal val input: () -> Float,
     internal val gestureContext: GestureContext,
-    internal val stableThreshold: Float = StableThresholdSpatial,
+    internal val stableThreshold: Float = MotionValue.StableThresholdEffect,
     val label: String? = null,
 ) {
     private val managedComputations = mutableStateSetOf<ManagedMotionComputation>()
@@ -258,7 +256,8 @@ internal class ManagedMotionComputation(
     }
 
     override fun debugInspector(): DebugInspector {
-        if (debugInspectorRefCount.getAndIncrement() == 0) {
+        debugInspectorRefCount++
+        if (debugInspectorRefCount == 1) {
             debugInspector =
                 DebugInspector(
                     FrameData(
@@ -280,10 +279,11 @@ internal class ManagedMotionComputation(
         return checkNotNull(debugInspector)
     }
 
-    private var debugInspectorRefCount = AtomicInteger(0)
+    private var debugInspectorRefCount = 0
 
     private fun onDisposeDebugInspector() {
-        if (debugInspectorRefCount.decrementAndGet() == 0) {
+        debugInspectorRefCount--
+        if (debugInspectorRefCount == 0) {
             debugInspector = null
         }
     }
