@@ -140,6 +140,7 @@ constructor(
                         impl.lastSpringState,
                         impl.lastSegment,
                         impl.lastAnimation,
+                        impl.isOutputFixed,
                     ),
                     impl.isActive,
                     impl.animationFrameDriver.isRunning,
@@ -221,9 +222,9 @@ private class ImperativeComputations(
             repeatMode = ValueAnimator.RESTART
             repeatCount = ValueAnimator.INFINITE
             start()
-            pause()
             addUpdateListener {
                 val isAnimationFinished = updateOutputValue(currentPlayTime)
+                debugInspector?.isAnimating = !isAnimationFinished
                 if (isAnimationFinished) {
                     pause()
                 }
@@ -233,14 +234,12 @@ private class ImperativeComputations(
     fun ensureFrameRequested() {
         if (animationFrameDriver.isPaused) {
             animationFrameDriver.resume()
-            debugInspector?.isAnimating = true
         }
     }
 
     fun pauseFrameRequests() {
         if (animationFrameDriver.isRunning) {
             animationFrameDriver.pause()
-            debugInspector?.isAnimating = false
         }
     }
 
@@ -285,8 +284,11 @@ private class ImperativeComputations(
                     currentSpringState,
                     currentValues.segment,
                     currentValues.animation,
+                    isOutputFixed,
                 )
         }
+
+        if (currentValues.segment.spec == MotionSpec.InitiallyUndefined) return true
 
         listeners.fastForEach { it.onMotionValueUpdated(motionValue) }
 

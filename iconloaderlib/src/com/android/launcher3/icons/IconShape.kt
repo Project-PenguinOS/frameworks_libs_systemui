@@ -22,6 +22,7 @@ import android.graphics.Color
 import android.graphics.Path
 import android.graphics.drawable.AdaptiveIconDrawable
 import android.graphics.drawable.ColorDrawable
+import com.android.launcher3.icons.ShapeRenderer.PathRenderer
 
 data class IconShape(
     /** Size that [path] should be scaled to. */
@@ -30,8 +31,9 @@ data class IconShape(
     @JvmField val path: Path,
     /** Shadow layer to draw behind icon. Should use the same shape and scale as [path] */
     @JvmField val shadowLayer: Bitmap,
+    /** Renderer for customizing how shapes are drawn to canvas */
+    @JvmField val shapeRenderer: ShapeRenderer = PathRenderer(path),
 ) {
-
     companion object {
         private const val DEFAULT_PATH_SIZE = 100
 

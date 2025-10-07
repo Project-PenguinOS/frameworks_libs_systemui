@@ -29,6 +29,7 @@ import android.graphics.Bitmap
 import android.graphics.Bitmap.Config.HARDWARE
 import android.graphics.BitmapFactory
 import android.graphics.BitmapFactory.Options
+import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.os.Handler
 import android.os.Looper
@@ -188,8 +189,15 @@ constructor(
         val index = userFormatString.indexOfKey(key)
         var format: String?
         if (index < 0) {
-            format = packageManager.getUserBadgedLabel(IDENTITY_FORMAT_STRING, user).toString()
-            if (TextUtils.equals(IDENTITY_FORMAT_STRING, format)) {
+            try {
+                format = packageManager.getUserBadgedLabel(IDENTITY_FORMAT_STRING, user).toString()
+                if (TextUtils.equals(IDENTITY_FORMAT_STRING, format)) {
+                    format = null
+                }
+            } catch (e: Exception) {
+                // Its possible that the caller may have an outdated cached user specific-entry.
+                // For eg, if a user was removed but that event has not propagated to the client yet
+                Log.e(TAG, "failed to access private profile data", e)
                 format = null
             }
             userFormatString.put(key, format)
@@ -381,8 +389,8 @@ constructor(
             iconFactory.use { li ->
                 entry.bitmap =
                     li.createBadgedIconBitmap(
-                        li.createShapedAdaptiveIcon(icon),
-                        IconOptions().setUser(user),
+                        BitmapDrawable(icon),
+                        IconOptions().setUser(user).assumeFullBleedIcon(true),
                     )
             }
         }
@@ -652,7 +660,9 @@ constructor(
             ComponentKey(ComponentName(packageName, packageName + EMPTY_CLASS_NAME), user)
 
         // Ensures themed bitmaps in the icon cache are invalidated
-        @JvmField val RELEASE_VERSION = if (Flags.enableLauncherIconShapes()) 13 else 12
+        // LINT.IfChange(cache_release_version)
+        @JvmField val RELEASE_VERSION = if (Flags.enableLauncherIconShapes()) 14 else 12
+        // LINT.ThenChange()
 
         @JvmField val TABLE_NAME = "icons"
         @JvmField val COLUMN_ROWID = "rowid"
