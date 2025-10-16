@@ -13,24 +13,18 @@
 // limitations under the License.
 
 package {
-    default_team: "trendy_team_motion",
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
+// Standard library with light and dark color resources.
 android_library {
-    name: "mechanics-compose",
-    manifest: "AndroidManifest.xml",
-    srcs: [
-        "src/**/*.kt",
+    name: "dynamiccolors",
+    sdk_version: "current",
+    min_sdk_version: "30",
+    resource_dirs: ["res"],
+    apex_available: [
+        "//apex_available:platform",
+        "com.android.mediaprovider",
+        "com.android.nfcservices",
     ],
-    static_libs: [
-        // Private APIs
-        "PlatformComposeSceneTransitionLayout",
-        "PlatformMotionTestingComposeValues",
-
-        // Public APIs
-        "//frameworks/libs/systemui/mechanics:mechanics",
-        "androidx.compose.runtime_runtime",
-    ],
-    kotlincflags: ["-Xjvm-default=all"],
 }
