@@ -22,6 +22,7 @@ import androidx.compose.ui.util.fastCoerceIn
 import androidx.compose.ui.util.fastIsFinite
 import androidx.compose.ui.util.lerp
 import com.android.mechanics.MotionValue.Companion.TAG
+import com.android.mechanics.haptics.BreakpointHaptics
 import com.android.mechanics.spec.Guarantee
 import com.android.mechanics.spec.InputDirection
 import com.android.mechanics.spec.Mapping
@@ -36,6 +37,7 @@ internal abstract class Computations : CurrentFrameInput, LastFrameState, Static
         val segment: SegmentData,
         val guarantee: GuaranteeState,
         val animation: DiscontinuityAnimation,
+        val breakpointHaptics: BreakpointHaptics?,
     )
 
     // currentComputedValues input
@@ -50,6 +52,7 @@ internal abstract class Computations : CurrentFrameInput, LastFrameState, Static
             MotionSpec.InitiallyUndefined.segmentAtInput(memoizedInput, memoizedDirection),
             GuaranteeState.Inactive,
             DiscontinuityAnimation.None,
+            BreakpointHaptics.None,
         )
 
     internal val currentComputedValues: ComputedValues
@@ -86,6 +89,7 @@ internal abstract class Computations : CurrentFrameInput, LastFrameState, Static
                         currentSpec.segmentAtInput(currentInput, currentDirection),
                         GuaranteeState.Inactive,
                         DiscontinuityAnimation.None,
+                        BreakpointHaptics.None,
                     )
                 } else {
                     val segment: SegmentData =
@@ -119,7 +123,9 @@ internal abstract class Computations : CurrentFrameInput, LastFrameState, Static
                             animationTimeNanos = currentAnimationTimeNanos,
                         )
 
-                    ComputedValues(segment, guarantee, animation)
+                    val breakpointHaptics = computeBreakpointHaptics(segment, segmentChange)
+
+                    ComputedValues(segment, guarantee, animation, breakpointHaptics)
                 }
             return memoizedComputedValues
         }
@@ -149,15 +155,15 @@ internal abstract class Computations : CurrentFrameInput, LastFrameState, Static
                 lastSegment.spec == spec &&
                 lastSegment.isValidForInput(currentInput, currentDirection)
 
-    val output: Float
+    val computedOutput: Float
         get() =
             if (isSameSegmentAndAtRest) {
                 lastSegment.mapping.map(currentInput)
             } else {
-                outputTarget + currentSpringState.displacement
+                computedOutputTarget + currentSpringState.displacement
             }
 
-    val outputTarget: Float
+    val computedOutputTarget: Float
         get() =
             if (isSameSegmentAndAtRest) {
                 lastSegment.mapping.map(currentInput)
@@ -165,7 +171,7 @@ internal abstract class Computations : CurrentFrameInput, LastFrameState, Static
                 currentComputedValues.segment.mapping.map(currentInput)
             }
 
-    val isStable: Boolean
+    val computedIsStable: Boolean
         get() =
             if (isSameSegmentAndAtRest) {
                 true
@@ -180,7 +186,7 @@ internal abstract class Computations : CurrentFrameInput, LastFrameState, Static
      * segment with a [Mapping.Fixed], and that mapping's value has not changed from the previous
      * frame.
      */
-    val isOutputFixed: Boolean
+    val computedIsOutputFixed: Boolean
         get() {
             if (lastSpringState != SpringState.AtRest) {
                 // The spring is still settling.
@@ -213,7 +219,7 @@ internal abstract class Computations : CurrentFrameInput, LastFrameState, Static
             }
         }
 
-    fun <T> semanticState(semanticKey: SemanticKey<T>): T? {
+    fun <T> computedSemanticState(semanticKey: SemanticKey<T>): T? {
         return with(if (isSameSegmentAndAtRest) lastSegment else currentComputedValues.segment) {
             spec.semanticState(semanticKey, key)
         }
@@ -633,6 +639,15 @@ internal abstract class Computations : CurrentFrameInput, LastFrameState, Static
             }
         }
     }
+
+    private fun computeBreakpointHaptics(
+        segment: SegmentData,
+        segmentChange: SegmentChangeType,
+    ): BreakpointHaptics? =
+        when (segmentChange) {
+            SegmentChangeType.Traverse -> segment.entryBreakpoint.breakpointHaptics
+            else -> null
+        }
 
     /**
      * Precondition to ensure that this [Computations] has not yet been initialized with a

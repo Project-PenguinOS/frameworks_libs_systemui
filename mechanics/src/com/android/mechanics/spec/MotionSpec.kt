@@ -17,6 +17,7 @@
 package com.android.mechanics.spec
 
 import androidx.compose.ui.util.fastFirstOrNull
+import com.android.mechanics.haptics.SegmentHaptics
 import com.android.mechanics.spring.SpringParameters
 
 /**
@@ -119,6 +120,7 @@ data class MotionSpec(
                 breakpoints[idx + 1],
                 direction,
                 mappings[idx],
+                haptics[idx],
             )
         }
     }
@@ -148,8 +150,8 @@ data class MotionSpec(
          */
         private val DefaultResetSpring = SpringParameters(stiffness = 1400f, dampingRatio = 1f)
 
-        /* Empty motion spec, the output is the same as the input. */
-        val Empty = MotionSpec(DirectionalMotionSpec.Empty)
+        /* Identity motion spec, the output is the same as the input. */
+        val Identity = MotionSpec(DirectionalMotionSpec.Identity)
 
         /**
          * Placeholder to indicate that a [MotionSpec] cannot be supplied yet.
@@ -180,11 +182,14 @@ data class MotionSpec(
  *   element, and [Breakpoint.maxLimit] as the last element.
  * @param mappings All mappings in between the breakpoints, thus must always contain
  *   `breakpoints.size - 1` elements.
+ * @param haptics All segment haptics in between the breakpoints, thus must always contain
+ *   `breakpoints.size - 1` elements.
  * @param semantics Semantics that apply to the [MotionSpec].
  */
 data class DirectionalMotionSpec(
     val breakpoints: List<Breakpoint>,
     val mappings: List<Mapping>,
+    val haptics: List<SegmentHaptics> = List(mappings.size) { SegmentHaptics.None },
     val semantics: List<SegmentSemanticValues<*>> = emptyList(),
 ) {
     /** Maps all [BreakpointKey]s used in this spec to its index in [breakpoints]. */
@@ -198,6 +203,10 @@ data class DirectionalMotionSpec(
             "Breakpoints are not sorted ascending ${breakpoints.map { "${it.key}@${it.position}" }}"
         }
         require(mappings.size == breakpoints.size - 1)
+        require(haptics.size == breakpoints.size - 1) {
+            "${haptics.size} segment haptics were provided but ${breakpoints.size - 1} are " +
+                "required"
+        }
 
         breakpointIndexByKey =
             breakpoints.mapIndexed { index, breakpoint -> breakpoint.key to index }.toMap()
@@ -254,11 +263,12 @@ data class DirectionalMotionSpec(
     override fun toString() = toDebugString()
 
     companion object {
-        /* Empty spec, the full input domain is mapped to output using [Mapping.identity]. */
-        val Empty =
+        /* Identity spec, the full input domain is mapped to output using [Mapping.identity]. */
+        val Identity =
             DirectionalMotionSpec(
                 listOf(Breakpoint.minLimit, Breakpoint.maxLimit),
                 listOf(Mapping.Identity),
+                listOf(SegmentHaptics.None),
             )
 
         /** Internal marker for [MotionSpec.InitiallyUndefined]. */
@@ -276,6 +286,7 @@ data class DirectionalMotionSpec(
                         }
                     }
                 ),
+                listOf<SegmentHaptics>(SegmentHaptics.None),
             )
     }
 }

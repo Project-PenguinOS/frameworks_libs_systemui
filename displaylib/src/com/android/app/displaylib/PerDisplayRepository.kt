@@ -28,11 +28,13 @@ import dagger.assisted.AssistedInject
 import java.util.concurrent.ConcurrentHashMap
 import java.util.function.Consumer
 import javax.inject.Qualifier
+import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.withContext
 
 /**
  * Used to create instances of type `T` for a specific display.
@@ -153,6 +155,17 @@ interface PerDisplayRepository<T> {
 @Qualifier @Retention(AnnotationRetention.RUNTIME) annotation class DisplayLibBackground
 
 /**
+ * Qualifier for [CoroutineContext] backed by [android.os.HandlerThread], which is suitable to
+ * create Dagger objects that rely on [android.os.Looper].
+ *
+ * TODO(b/445367682): remove this qualifier once objects created by per display repository no longer
+ *   rely on Looper.myLooper.
+ */
+@Qualifier
+@Retention(AnnotationRetention.RUNTIME)
+annotation class DisplayLibHandlerThreadBackground
+
+/**
  * Default implementation of [PerDisplayRepository].
  *
  * This class manages a cache of per-display instances of type `T`, creating them using a provided
@@ -177,9 +190,12 @@ constructor(
     @Assisted override val debugName: String,
     @Assisted private val instanceProvider: PerDisplayInstanceProvider<T>,
     @Assisted lifecycleManager: DisplayInstanceLifecycleManager? = null,
+    @DisplayLibHandlerThreadBackground
+    private val bgHandlerThreadBackgroundContext: CoroutineContext,
     @DisplayLibBackground bgApplicationScope: CoroutineScope,
     private val displayRepository: DisplayRepository,
     private val initCallback: PerDisplayRepository.InitCallback,
+    @Assisted private val createInstanceEagerly: Boolean = false,
 ) : PerDisplayRepository<T> {
 
     private val perDisplayInstances = ConcurrentHashMap<Int, T?>()
@@ -212,6 +228,18 @@ constructor(
     private suspend fun start() {
         initCallback.onInit(debugName, this)
         allowedDisplays.collectLatest { displayIds ->
+            if (createInstanceEagerly) {
+                withContext(bgHandlerThreadBackgroundContext) {
+                    val toAdd = displayIds - perDisplayInstances.keys
+                    toAdd.forEach { displayId ->
+                        Log.d(
+                            TAG,
+                            "<$debugName> eagerly creating instance for displayId=$displayId.",
+                        )
+                        get(displayId)
+                    }
+                }
+            }
             val toRemove = perDisplayInstances.keys - displayIds
             toRemove.forEach { displayId ->
                 Log.d(TAG, "<$debugName> destroying instance for displayId=$displayId.")
@@ -225,7 +253,10 @@ constructor(
     }
 
     override fun get(displayId: Int): T? {
-        if (!displayRepository.containsDisplay(displayId)) {
+        if (
+            !displayRepository.containsDisplay(displayId) ||
+                displayRepository.getDisplay(displayId) == null
+        ) {
             Log.e(TAG, "<$debugName: Display with id $displayId doesn't exist.")
             return null
         }
@@ -285,6 +316,7 @@ constructor(
             debugName: String,
             instanceProvider: PerDisplayInstanceProvider<T>,
             overrideLifecycleManager: DisplayInstanceLifecycleManager? = null,
+            createInstanceEagerly: Boolean = false,
         ): PerDisplayInstanceRepositoryImpl<T>
     }
 

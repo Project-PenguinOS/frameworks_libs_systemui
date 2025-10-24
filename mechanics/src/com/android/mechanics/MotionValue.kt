@@ -17,6 +17,7 @@
 package com.android.mechanics
 
 import androidx.compose.runtime.FloatState
+import androidx.compose.runtime.annotation.FrequentlyChangingValue
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -28,6 +29,9 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import com.android.mechanics.debug.DebugInspector
 import com.android.mechanics.debug.FrameData
+import com.android.mechanics.haptics.BreakpointHaptics
+import com.android.mechanics.haptics.HapticPlayer
+import com.android.mechanics.haptics.SegmentHaptics
 import com.android.mechanics.impl.Computations
 import com.android.mechanics.impl.DiscontinuityAnimation
 import com.android.mechanics.impl.GuaranteeState
@@ -121,6 +125,8 @@ import kotlinx.coroutines.withContext
  * @param label An optional label to aid in debugging.
  * @param stableThreshold A threshold value (in output units) that determines when the
  *   [MotionValue]'s internal spring animation is considered stable.
+ * @param hapticPlayer When specifying segment and breakpoint haptics, this player will be used to
+ *   deliver haptic feedback.
  */
 class MotionValue(
     input: () -> Float,
@@ -128,7 +134,8 @@ class MotionValue(
     spec: () -> MotionSpec,
     label: String? = null,
     stableThreshold: Float = StableThresholdEffect,
-) : FloatState {
+    hapticPlayer: HapticPlayer = HapticPlayer.NoPlayer,
+) : MotionValueState {
     private val impl =
         ObservableComputations(
             inputProvider = input,
@@ -136,13 +143,15 @@ class MotionValue(
             specProvider = spec,
             stableThreshold = stableThreshold,
             label = label,
+            hapticPlayer = hapticPlayer,
         )
 
     /** The [MotionSpec] describing the mapping of this [MotionValue]'s input to the output. */
-    val spec: MotionSpec by impl::spec
+    // TODO(b/441041846): This should not change frequently
+    @get:FrequentlyChangingValue val spec: MotionSpec by impl::spec
 
     /** Animated [output] value. */
-    val output: Float by impl::output
+    @get:FrequentlyChangingValue override val output: Float by impl::computedOutput
 
     /**
      * [output] value, but without animations.
@@ -151,13 +160,15 @@ class MotionValue(
      *
      * While [isStable], [outputTarget] and [output] are the same value.
      */
-    val outputTarget: Float by impl::outputTarget
+    // TODO(b/441041846): This should not change frequently
+    @get:FrequentlyChangingValue override val outputTarget: Float by impl::computedOutputTarget
 
     /** The [output] exposed as [FloatState]. */
-    override val floatValue: Float by impl::output
+    @get:FrequentlyChangingValue override val floatValue: Float by impl::computedOutput
 
     /** Whether an animation is currently running. */
-    val isStable: Boolean by impl::isStable
+    // TODO(b/441041846): This should not change frequently
+    @get:FrequentlyChangingValue override val isStable: Boolean by impl::computedIsStable
 
     /**
      * Whether the output can change its value.
@@ -167,19 +178,24 @@ class MotionValue(
      * output is guaranteed not to change unless the [spec] or the input (enough to change segments)
      * changes. This can be used to avoid unnecessary work like recomposition or re-measurement.
      */
-    val isOutputFixed: Boolean by impl::isOutputFixed
+    // TODO(b/441041846): This should not change frequently
+    @get:FrequentlyChangingValue val isOutputFixed: Boolean by impl::computedIsOutputFixed
 
     /**
      * The current value for the [SemanticKey].
      *
      * `null` if not defined in the spec.
      */
-    operator fun <T> get(key: SemanticKey<T>): T? {
-        return impl.semanticState(key)
+    // TODO(b/441041846): This should not change frequently
+    @FrequentlyChangingValue
+    override operator fun <T> get(key: SemanticKey<T>): T? {
+        return impl.computedSemanticState(key)
     }
 
     /** The current segment used to compute the output. */
-    val segmentKey: SegmentKey
+    // TODO(b/441041846): This should not change frequently
+    @get:FrequentlyChangingValue
+    override val segmentKey: SegmentKey
         get() = impl.currentComputedValues.segment.key
 
     /**
@@ -214,7 +230,7 @@ class MotionValue(
             impl.keepRunning { continueRunning.invoke(this@MotionValue) }
         }
 
-    val label: String? by impl::label
+    override val label: String? by impl::label
 
     companion object {
         /** Creates a [MotionValue] whose [currentInput] is the animated [output] of [source]. */
@@ -252,7 +268,7 @@ class MotionValue(
      *
      * The returned [DebugInspector] must be [DebugInspector.dispose]d when no longer needed.
      */
-    fun debugInspector(): DebugInspector {
+    override fun debugInspector(): DebugInspector {
         if (debugInspectorRefCount.getAndIncrement() == 0) {
             impl.debugInspector =
                 DebugInspector(
@@ -264,7 +280,7 @@ class MotionValue(
                         impl.lastSpringState,
                         impl.lastSegment,
                         impl.lastAnimation,
-                        impl.isOutputFixed,
+                        impl.computedIsOutputFixed,
                     ),
                     impl.isActive,
                     impl.debugIsAnimating,
@@ -282,6 +298,7 @@ private class ObservableComputations(
     private val specProvider: () -> MotionSpec,
     override val stableThreshold: Float,
     override val label: String?,
+    private val hapticPlayer: HapticPlayer,
 ) : Computations() {
 
     // ----  CurrentFrameInput ---------------------------------------------------------------------
@@ -299,6 +316,8 @@ private class ObservableComputations(
         get() = gestureContext.dragOffset
 
     override var currentAnimationTimeNanos by mutableLongStateOf(-1L)
+
+    override var lastHapticsTimeNanos by mutableLongStateOf(-1L)
 
     // ----  LastFrameState ---------------------------------------------------------------------
 
@@ -397,12 +416,14 @@ private class ObservableComputations(
                 }
 
                 var scheduleNextFrame = false
+                var breakpointHaptics: BreakpointHaptics? = null
                 if (!isSameSegmentAndAtRest) {
                     // Read currentComputedValues only once and update it, if necessary
                     val currentValues = currentComputedValues
 
                     if (capturedSegment != currentValues.segment) {
                         capturedSegment = currentValues.segment
+                        breakpointHaptics = currentValues.breakpointHaptics
                         scheduleNextFrame = true
                     }
 
@@ -437,6 +458,13 @@ private class ObservableComputations(
                     scheduleNextFrame = true
                 }
 
+                // Perform haptics
+                if (breakpointHaptics != null) {
+                    performBreakpointHapticFeedback(breakpointHaptics)
+                } else {
+                    performSegmentHapticFeedback(capturedSegment.haptics)
+                }
+
                 capturedFrameTimeNanos = currentAnimationTimeNanos
 
                 debugInspector?.run {
@@ -449,7 +477,7 @@ private class ObservableComputations(
                             capturedSpringState,
                             capturedSegment,
                             capturedAnimation,
-                            isOutputFixed,
+                            computedIsOutputFixed,
                         )
                 }
 
@@ -495,4 +523,24 @@ private class ObservableComputations(
         }
 
     var debugInspector: DebugInspector? = null
+
+    private fun performSegmentHapticFeedback(segmentHaptics: SegmentHaptics) {
+        val timeDelta = currentAnimationTimeNanos - lastHapticsTimeNanos
+        if (timeDelta < hapticPlayer.getPlaybackIntervalNanos()) return
+
+        val spatialInputPx = computedOutput
+        val velocityPxPerSec = directMappedVelocity // we assume this is always in px/sec.
+        lastHapticsTimeNanos = currentAnimationTimeNanos
+        hapticPlayer.playSegmentHaptics(segmentHaptics, spatialInputPx, velocityPxPerSec)
+    }
+
+    private fun performBreakpointHapticFeedback(breakpointHaptics: BreakpointHaptics) {
+        val timeDelta = currentAnimationTimeNanos - lastHapticsTimeNanos
+        if (timeDelta < hapticPlayer.getPlaybackIntervalNanos()) return
+
+        val spatialInputPx = computedOutput
+        val velocityPxPerSec = directMappedVelocity // we assume this is always in px/sec.
+        lastHapticsTimeNanos = currentAnimationTimeNanos
+        hapticPlayer.playBreakpointHaptics(breakpointHaptics, spatialInputPx, velocityPxPerSec)
+    }
 }
