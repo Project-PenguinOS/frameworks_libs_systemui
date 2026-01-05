@@ -41,7 +41,6 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
-import org.junit.Assert.assertThrows
 import org.junit.Test
 
 @EnableFlags(FLAG_COROUTINE_TRACING)
@@ -64,10 +63,10 @@ class CoroutineTracingMachineryTest : TestBase() {
                 // "launch#2" is not traced because TraceContextElement was installed too
                 // late; it is not part of the scope that was launched (i.e., the `this` in
                 // `this.launch {}`)
-                expect("1^main")
+                expect("1^")
                 channel.receive()
-                traceCoroutine("span-2") { expect("1^main", "span-2") }
-                expect("1^main")
+                traceCoroutine("span-2") { expect("1^", "span-2") }
+                expect("1^")
                 launch {
                     // ...it won't appear in the child scope either because in
                     // `launchTraced("string"), it adds:
@@ -75,7 +74,7 @@ class CoroutineTracingMachineryTest : TestBase() {
                     // important to only use `TraceContextElement` in the root scope. In this case,
                     // the `TraceContextElement`  overwrites the name, so the name is dropped.
                     // Tracing still works with a default, empty name, however.
-                    expect("1^main:1^")
+                    expect("1^:1^")
                 }
             }
             expect()
@@ -86,7 +85,7 @@ class CoroutineTracingMachineryTest : TestBase() {
         channel.send(2)
 
         launch(context1) { expect() }
-        launch(context2) { expect("2^main") }
+        launch(context2) { expect("2^") }
     }
 
     /**
@@ -136,12 +135,13 @@ class CoroutineTracingMachineryTest : TestBase() {
 
         val traceContext =
             TraceContextElement(
+                // Create `TraceData` for this `TraceContextElement` to indicate it's not a root TCE
+                contextTraceData = TraceData(initialSlices = null, strictMode = true),
                 name = "main",
-                isRoot = false,
                 countContinuations = false,
                 walkStackForDefaultNames = false,
-                shouldIgnoreClassName = { false },
                 parentId = null,
+                usePerfettoSdk = false,
                 inheritedTracePrefix = "",
                 coroutineDepth = -1,
             )
@@ -234,19 +234,15 @@ class CoroutineTracingMachineryTest : TestBase() {
                 assertNotNull(currentTce!!.contextTraceData)
                 assertSame(traceThreadLocal.get()!!.data, currentTce.contextTraceData)
                 // slices is lazily created, so it should not be initialized yet:
-                assertThrows(UninitializedPropertyAccessException::class.java) {
-                    (traceThreadLocal.get()!!.data as TraceData).slices
-                }
-                assertThrows(UninitializedPropertyAccessException::class.java) {
-                    currentTce.contextTraceData!!.slices
-                }
-                expect("1^main")
+                assertNull((traceThreadLocal.get()!!.data as TraceData).slices)
+                assertNull(currentTce.contextTraceData!!.slices)
+                expect("1^")
                 traceCoroutine("hello") {
                     // Not the same object because it should be copied into the current context
                     assertNotSame(traceThreadLocal.get()!!.data, traceContext.contextTraceData)
                     assertArrayEquals(
                         arrayOf("hello"),
-                        (traceThreadLocal.get()!!.data as TraceData).slices.toArray(),
+                        (traceThreadLocal.get()!!.data as TraceData).slices?.toArray(),
                     )
                     assertNull(traceContext.contextTraceData?.slices)
                 }
@@ -255,10 +251,10 @@ class CoroutineTracingMachineryTest : TestBase() {
                 // used to trace "hello", but this time it will be empty
                 assertArrayEquals(
                     arrayOf(),
-                    (traceThreadLocal.get()!!.data as TraceData).slices.toArray(),
+                    (traceThreadLocal.get()!!.data as TraceData).slices?.toArray(),
                 )
                 assertNull(traceContext.contextTraceData?.slices)
-                expect("1^main")
+                expect("1^")
             }
             .join()
         expect()

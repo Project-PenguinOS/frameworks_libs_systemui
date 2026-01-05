@@ -29,7 +29,10 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PathMeasure;
 import android.graphics.PointF;
+import android.graphics.RadialGradient;
 import android.graphics.Rect;
+import android.graphics.RectF;
+import android.graphics.Shader.TileMode;
 import android.util.Log;
 import android.view.ViewDebug;
 
@@ -43,30 +46,55 @@ public class DotRenderer {
 
     private static final String TAG = "DotRenderer";
 
+    // Maintain a cache of largest shadow bitmap used so far (per process) to avoid creating exact
+    // same bitmap multiple times
+    private static Bitmap sCachedShadowBitmap = null;
+
     // The dot size is defined as a percentage of the app icon size.
     private static final float SIZE_PERCENTAGE = 0.228f;
     // The black border needs a light notification dot color. This is for accessibility.
     private static final float LUMINENSCE_LIMIT = .70f;
 
-    private final float mCircleRadius;
-    private final Paint mCirclePaint = new Paint(ANTI_ALIAS_FLAG | FILTER_BITMAP_FLAG);
-
-    private final Bitmap mBackgroundWithShadow;
-    private final float mBitmapOffset;
-
     private static final int MIN_DOT_SIZE = 1;
 
-    public DotRenderer(int iconSizePx) {
-        int size = Math.round(SIZE_PERCENTAGE * iconSizePx);
-        if (size <= 0) {
-            size = MIN_DOT_SIZE;
-        }
-        ShadowGenerator.Builder builder = new ShadowGenerator.Builder(Color.TRANSPARENT);
-        builder.ambientShadowAlpha = 255;
-        mBackgroundWithShadow = builder.setupBlurForSize(size).createPill(size, size);
-        mCircleRadius = builder.radius;
+    private static final float SHADOW_FACTOR = 1f / 12;
 
-        mBitmapOffset = -mBackgroundWithShadow.getHeight() * 0.5f; // Same as width.
+    private final Paint mCirclePaint = new Paint(ANTI_ALIAS_FLAG | FILTER_BITMAP_FLAG);
+    private final float mCircleRadius;
+    private final float mDrawnRadius;
+
+    private final Bitmap mShadowBitmap;
+    private final RectF mShadowDrawRect;
+
+    public DotRenderer(int iconSizePx) {
+        float dotSize = Math.max(MIN_DOT_SIZE, Math.round(SIZE_PERCENTAGE * iconSizePx));
+        float shadowSize = dotSize * SHADOW_FACTOR;
+
+        mCircleRadius = dotSize / 2;
+        mDrawnRadius = mCircleRadius + shadowSize;
+        mShadowDrawRect = new RectF(-mDrawnRadius, -mDrawnRadius, mDrawnRadius, mDrawnRadius);
+
+        int shadowBitmapSize = Math.max(MIN_DOT_SIZE, Math.round(2 * mDrawnRadius));
+        mShadowBitmap = getCachedShadowBitmap(shadowBitmapSize);
+    }
+
+    private static Bitmap getCachedShadowBitmap(int bitmapSize) {
+        Bitmap cachedShadow = sCachedShadowBitmap;
+        if (cachedShadow == null || cachedShadow.getWidth() < bitmapSize) {
+            // Create a new shadow bitmap
+            var r = bitmapSize * 0.5f;
+            var shader = new RadialGradient(r, r, r,
+                    new int[] { Color.BLACK, Color.TRANSPARENT},
+                    new float[] {.3f, 1}, TileMode.CLAMP);
+
+            var paint = new Paint(ANTI_ALIAS_FLAG | FILTER_BITMAP_FLAG);
+            paint.setShader(shader);
+
+            cachedShadow = BitmapRenderer.createHardwareBitmap(bitmapSize, bitmapSize,
+                    c -> c.drawCircle(r, r, r, paint));
+            sCachedShadowBitmap = cachedShadow;
+        }
+        return cachedShadow;
     }
 
     private static PointF getPathPoint(Path path, float size, float direction) {
@@ -95,7 +123,8 @@ public class DotRenderer {
             Log.e(TAG, "Invalid null argument(s) passed in call to draw.");
             return;
         }
-        canvas.save();
+
+        mCirclePaint.setColor(params.mDotColor);
 
         Rect iconBounds = params.iconBounds;
         PointF dotPosition = params.getDotPosition();
@@ -104,20 +133,19 @@ public class DotRenderer {
 
         // Ensure dot fits entirely in canvas clip bounds.
         Rect canvasBounds = canvas.getClipBounds();
-        float offsetX = params.leftAlign
-                ? Math.max(0, canvasBounds.left - (dotCenterX + mBitmapOffset))
-                : Math.min(0, canvasBounds.right - (dotCenterX - mBitmapOffset));
-        float offsetY = Math.max(0, canvasBounds.top - (dotCenterY + mBitmapOffset));
+        float centerX = params.leftAlign
+                ? (Math.max(dotCenterX - mDrawnRadius, canvasBounds.left) + mDrawnRadius)
+                : (Math.min(dotCenterX + mDrawnRadius, canvasBounds.right) - mDrawnRadius);
+        float centerY = Math.max(dotCenterY - mDrawnRadius, canvasBounds.top) + mDrawnRadius;
 
         // We draw the dot relative to its center.
-        canvas.translate(dotCenterX + offsetX, dotCenterY + offsetY);
+        canvas.save();
+        canvas.translate(centerX, centerY);
         canvas.scale(params.scale, params.scale);
 
-        // Draw Background Shadow
-        mCirclePaint.setColor(Color.BLACK);
-        canvas.drawBitmap(mBackgroundWithShadow, mBitmapOffset, mBitmapOffset, mCirclePaint);
-
-        mCirclePaint.setColor(params.mDotColor);
+        if (mShadowBitmap != null) {
+            canvas.drawBitmap(mShadowBitmap, null, mShadowDrawRect, mCirclePaint);
+        }
         canvas.drawCircle(0, 0, mCircleRadius, mCirclePaint);
         canvas.restore();
     }

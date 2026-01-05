@@ -18,8 +18,6 @@
 
 package com.android.test.tracing.coroutines
 
-import android.os.Flags.FLAG_PERFETTO_SDK_TRACING_V2
-import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
 import com.android.app.tracing.coroutines.createCoroutineTracingContext
 import com.android.app.tracing.coroutines.launchTraced
@@ -33,11 +31,12 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import org.junit.Test
 
-@DisableFlags(FLAG_PERFETTO_SDK_TRACING_V2)
 @EnableFlags(FLAG_COROUTINE_TRACING)
 class NestedCoroutineTracingTest : TestBase() {
 
-    override val extraContext: CoroutineContext by lazy { createCoroutineTracingContext("main") }
+    override val extraContext: CoroutineContext by lazy {
+        createCoroutineTracingContext("main", usePerfettoSdk = false)
+    }
 
     @Test
     fun stressTestContextSwitches_depth() {
@@ -46,7 +45,7 @@ class NestedCoroutineTracingTest : TestBase() {
             launchTraced("launch#$n", start = CoroutineStart.UNDISPATCHED) {
                 traceCoroutine("a") {
                     if (n == 350) {
-                        val expectedBeforeDelay = mutableListOf("main")
+                        val expectedBeforeDelay = mutableListOf("")
                         repeat(n + 1) {
                             expectedBeforeDelay.add("launch#$it")
                             expectedBeforeDelay.add("a")

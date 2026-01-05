@@ -35,12 +35,12 @@ class RunBlockingTracedTest : TestBase() {
     @Test
     fun runBlockingTracedWithSpanNameLambda() =
         runTest(totalEvents = 2) {
-            expect(1, "1^main")
+            expect(1, "1^")
 
             val result =
                 runBlockingTraced({ "hello" }) {
                     delay(1)
-                    expect(2, "1^main", "hello")
+                    expect(2, "1^", "runBlocking:hello")
                     true
                 }
 
@@ -50,12 +50,12 @@ class RunBlockingTracedTest : TestBase() {
     @Test
     fun runBlockingTracedWithSpanNameString() =
         runTest(totalEvents = 2) {
-            expect(1, "1^main")
+            expect(1, "1^")
 
             val result =
                 runBlockingTraced(spanName = "hello", context = EmptyCoroutineContext) {
                     delay(1)
-                    expect(2, "1^main", "hello")
+                    expect(2, "1^", "runBlocking:hello")
                     true
                 }
 
@@ -65,15 +65,15 @@ class RunBlockingTracedTest : TestBase() {
     @Test
     fun runBlockingTracedWithDefaultSpanNameAndContext() =
         runTest(totalEvents = 2) {
-            expect(1, "1^main")
+            expect(1, "1^")
 
             val result =
                 runBlockingTraced(spanName = null, context = EmptyCoroutineContext) {
                     delay(1)
                     expect(
                         2,
-                        "1^main",
-                        "RunBlockingTracedTest\$runBlockingTracedWithDefaultSpanNameAndContext$1\$result$1",
+                        "1^",
+                        "runBlocking:RunBlockingTracedTest\$runBlockingTracedWithDefaultSpanNameAndContext$1\$result$1",
                     )
                     true
                 }
@@ -83,13 +83,13 @@ class RunBlockingTracedTest : TestBase() {
     @Test
     fun runBlockingTracedNestedTraceSections() =
         runTest(totalEvents = 2) {
-            expect(1, "1^main")
+            expect(1, "1^")
 
             val result =
                 runBlockingTraced(spanName = { "OuterSpan" }) {
                     traceSection("InnerSpan") {
                         delay(1)
-                        expect(2, "1^main", "OuterSpan", "InnerSpan")
+                        expect(2, "1^", "runBlocking:OuterSpan", "InnerSpan")
                         true
                     }
                 }
@@ -101,12 +101,12 @@ class RunBlockingTracedTest : TestBase() {
         runTest(totalEvents = 2) {
             FakeTraceState.isTracingEnabled = false
 
-            expect(1, "1^main")
+            expect(1, "1^")
 
             val result =
                 runBlockingTraced(spanName = { "NoTraceSpan" }) {
                     delay(1)
-                    expect(2, "1^main")
+                    expect(2, "1^")
                     true
                 }
             assertTrue(result)
