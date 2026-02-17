@@ -16,23 +16,13 @@
 package com.android.launcher3.icons.cache
 
 import android.content.ComponentName
-import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.os.UserHandle
 import com.android.launcher3.icons.BitmapInfo
 import com.android.launcher3.icons.IconProvider
-import com.android.launcher3.icons.SourceHint
-import com.android.launcher3.util.ComponentKey
+import com.android.launcher3.icons.PersistedItemState
 
 interface CachingLogic<T> {
-    /** Returns the source hint for this object that can be sued by theme controllers */
-    fun getSourceHint(item: T, cache: BaseIconCache): SourceHint {
-        return SourceHint(
-            key = ComponentKey(getComponent(item), getUser(item)),
-            logic = this,
-            freshnessId = getFreshnessIdentifier(item, cache.iconProvider),
-        )
-    }
 
     fun getComponent(item: T): ComponentName
 
@@ -47,11 +37,11 @@ interface CachingLogic<T> {
      */
     fun getApplicationInfo(item: T): ApplicationInfo?
 
-    fun loadIcon(context: Context, cache: BaseIconCache, item: T): BitmapInfo
+    fun loadIcon(request: IconLoadRequest<T>): BitmapInfo
 
     /**
      * Returns a persistable string that can be used to indicate indicate the correctness of the
      * cache for the provided item
      */
-    fun getFreshnessIdentifier(item: T, iconProvider: IconProvider): String?
+    fun getFreshnessIdentifier(item: T, iconProvider: IconProvider): PersistedItemState?
 }

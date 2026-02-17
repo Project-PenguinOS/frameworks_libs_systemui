@@ -20,9 +20,19 @@ flag {
 }
 
 flag {
+    name: "brightness_dialog_on_system_user"
+    namespace: "systemui"
+    description: "Launches BrightnessDialog always on System user from Settings"
+    bug: "411698713"
+    metadata {
+         purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
     name: "cue_bar_ace_migration"
     namespace: "launcher_search"
-    description: "Cue Bar receives data from Android Context Engine and is rendered in Taskbar."
+    description: "Cue Bar receives data from new service provider and is rendered in Taskbar."
     bug: "437417091"
 }
 
@@ -31,16 +41,6 @@ flag {
   namespace: "systemui"
   description: "Enables hot corner navigation by cursor"
   bug: "397182595"
-}
-
-flag {
-    name: "enable_gesture_assist_invocation_effect"
-    namespace: "systemui"
-    description: "Enables invocation effect on corner gesture for launching assistant"
-    bug: "417194744"
-    metadata {
-         purpose: PURPOSE_BUGFIX
-    }
 }
 
 flag {
@@ -89,6 +89,13 @@ flag {
   namespace: "launcher"
   description: "Enables custom theme manager in Launcher and Customization Picker"
   bug: "381897614"
+}
+
+flag {
+    name: "launcher_animation_shell_migration"
+    namespace: "systemui"
+    description: "Migrate old animation APIs to newer shell transition APIs"
+    bug: "449709471"
 }
 
 flag {
@@ -147,13 +154,6 @@ flag {
     metadata {
          purpose: PURPOSE_BUGFIX
     }
-}
-
-flag {
-  name: "status_bar_connected_displays"
-  namespace: "lse_desktop_experience"
-  description: "Shows the status bar on connected displays"
-  bug: "379264862"
 }
 
 flag {

@@ -25,6 +25,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.android.launcher3.icons.IconProvider;
+import com.android.launcher3.icons.PersistedItemState;
 
 /**
  * A simple interface to represent an object which can be added to icon cache
@@ -50,7 +51,7 @@ public interface CachedObject {
      * Loads the user visible icon for the provided object
      */
     @Nullable
-    default Drawable getFullResIcon(@NonNull BaseIconCache cache) {
+    default Drawable getFullResIcon(@NonNull IconLoadRequest<CachedObject> request) {
         return null;
     }
 
@@ -65,7 +66,7 @@ public interface CachedObject {
      * cache for the provided item
      */
     @Nullable
-    default String getFreshnessIdentifier(@NonNull IconProvider iconProvider) {
+    default PersistedItemState getFreshnessIdentifier(@NonNull IconProvider iconProvider) {
         return iconProvider.getStateForApp(getApplicationInfo());
     }
 }
