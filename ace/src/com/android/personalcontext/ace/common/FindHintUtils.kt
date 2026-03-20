@@ -19,8 +19,6 @@ package com.android.personalcontext.ace.common
 
 import android.service.personalcontext.hint.ContextHint
 import android.service.personalcontext.insight.ContextInsight
-import com.android.personalcontext.ace.prototype.PrototypeHint
-import com.android.personalcontext.ace.prototype.PrototypeHintUtils.toPrototypeHint
 
 /**
  * Utility object for extracting specific typed hints from a
@@ -28,28 +26,14 @@ import com.android.personalcontext.ace.prototype.PrototypeHintUtils.toPrototypeH
  */
 object FindHintUtils {
 
-    /**
-     * Finds the first [android.service.personalcontext.hint.ContextHint] of type [T] within this
-     * [android.service.personalcontext.insight.ContextInsight].
-     *
-     * @param T The specific type of [android.service.personalcontext.hint.ContextHint] to find.
-     * @return The first hint of type [T], or `null` if no matching hint is found.
-     */
-    @JvmSynthetic
-    inline fun <reified T : ContextHint> ContextInsight.findContextHint(): T? =
-        originHints.firstNotNullOfOrNull { it.contextHint as? T }
-
-    /**
-     * Finds the first hint that can be converted to a
-     * [com.android.personalcontext.ace.prototype.PrototypeHint] of type [T] within this
-     * [ContextInsight].
-     *
-     * @param T The specific type of [com.android.personalcontext.ace.prototype.PrototypeHint] to
-     *   find.
-     * @return The converted prototype hint of type [T], or `null` if no hint could be successfully
-     *   converted.
-     */
-    @JvmSynthetic
-    inline fun <reified T : PrototypeHint> ContextInsight.findPrototypeHint(): T? =
-        originHints.firstNotNullOfOrNull { it.contextHint.toPrototypeHint<T>() }
+  /**
+   * Finds the first [android.service.personalcontext.hint.ContextHint] of type [T] within this
+   * [android.service.personalcontext.insight.ContextInsight].
+   *
+   * @param T The specific type of [android.service.personalcontext.hint.ContextHint] to find.
+   * @return The first hint of type [T], or `null` if no matching hint is found.
+   */
+  @JvmSynthetic
+  inline fun <reified T : ContextHint> ContextInsight.findContextHint(): T? =
+    originHints.firstNotNullOfOrNull { it.contextHint as? T }
 }
