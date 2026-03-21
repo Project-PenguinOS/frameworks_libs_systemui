@@ -3,16 +3,15 @@ package {
 }
 
 android_library {
-    name: "personalcontext_ace_common_pretty_print",
-    srcs: ["PrettyPrintUtils.kt"],
+    name: "personalcontext_ace_common",
+    srcs: [
+        "**/*.kt",
+    ],
     manifest: "AndroidManifest.xml",
-    static_libs: ["personalcontext_ace_common_render_token"],
-}
-
-android_library {
-    name: "personalcontext_ace_common_render_token",
-    srcs: ["RenderTokenUtils.kt"],
-    manifest: "AndroidManifest.xml",
+    static_libs: [
+        "androidx.annotation_annotation",
+        "androidx.core_core",
+    ],
 }
 
 android_library {
