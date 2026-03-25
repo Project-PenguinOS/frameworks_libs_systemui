@@ -31,41 +31,40 @@ import dagger.multibindings.IntoSet
 
 /** Dagger module for platform dependencies. */
 @Module
-interface PersonalContextModuleVisualizer {
+interface PersonalContextModule {
+  companion object {
 
-    companion object {
-
-        @Provides
-        fun provideVisualizerServiceConnector(
-            impl: Lazy<VisualizerServiceConnectorImpl>
-        ): VisualizerServiceConnector {
-            return impl.get()
-        }
-
-        @Provides
-        fun provideVisualizerSessionFactory(
-            impl: Lazy<VisualizerSessionFactoryImpl>
-        ): VisualizerSessionFactory {
-            return impl.get()
-        }
-
-        @Provides
-        fun provideComposeViewFactory(impl: Lazy<ComposeViewFactoryImpl>): ComposeViewFactory {
-            return impl.get()
-        }
-
-        @Provides
-        @IntoSet
-        fun provideCallVisualizerTemplate(impl: Lazy<CallVisualizerTemplate>): VisualizerTemplate {
-            return impl.get()
-        }
-
-        @Provides
-        @IntoSet
-        fun provideMessageVisualizerTemplate(
-            impl: Lazy<MessageVisualizerTemplate>
-        ): VisualizerTemplate {
-            return impl.get()
-        }
+    @Provides
+    fun provideVisualizerServiceConnector(
+      impl: Lazy<VisualizerServiceConnectorImpl>
+    ): VisualizerServiceConnector {
+      return impl.get()
     }
+
+    @Provides
+    fun provideVisualizerSessionFactory(
+      impl: Lazy<VisualizerSessionFactoryImpl>
+    ): VisualizerSessionFactory {
+      return impl.get()
+    }
+
+    @Provides
+    fun provideComposeViewFactory(impl: Lazy<ComposeViewFactoryImpl>): ComposeViewFactory {
+      return impl.get()
+    }
+
+    @Provides
+    @IntoSet
+    fun provideCallVisualizerTemplate(impl: Lazy<CallVisualizerTemplate>): VisualizerTemplate {
+      return impl.get()
+    }
+
+    @Provides
+    @IntoSet
+    fun provideMessageVisualizerTemplate(
+      impl: Lazy<MessageVisualizerTemplate>
+    ): VisualizerTemplate {
+      return impl.get()
+    }
+  }
 }
