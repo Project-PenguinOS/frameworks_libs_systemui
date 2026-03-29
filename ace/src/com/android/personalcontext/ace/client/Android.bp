@@ -34,7 +34,6 @@ android_library {
         "kotlin-parcelize-runtime",
         "kotlinx-coroutines-android",
         "personalcontext_ace_common",
-        "personalcontext_ace_common_embeddedscroll",
     ],
     kotlin_plugins: ["kotlin-parcelize-compiler-plugin"],
     kotlincflags: ["-Xjvm-default=all"],
