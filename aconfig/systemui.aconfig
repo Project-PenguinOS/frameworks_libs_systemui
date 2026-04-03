@@ -134,6 +134,16 @@ flag {
 }
 
 flag {
+    name: "selective_dialog_taskbar_stash"
+    namespace: "systemui"
+    description: "Allows SystemUI dialogs to selectively control taskbar stashing behavior."
+    bug: "386871258"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
     name: "shade_allow_back_gesture"
     namespace: "systemui"
     description: "Allow Back Gestures in Shade"

@@ -14,9 +14,3 @@ android_library {
     ],
 }
 
-android_library {
-    name: "personalcontext_ace_common_embeddedscroll",
-    srcs: ["EmbeddedScrollEvent.kt"],
-    manifest: "AndroidManifest.xml",
-    static_libs: ["androidx.core_core"],
-}
