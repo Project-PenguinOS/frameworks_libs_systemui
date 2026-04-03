@@ -51,6 +51,13 @@ flag {
 }
 
 flag {
+  name: "enable_ai_clocks"
+  namespace: "systemui"
+  description: "Enables AI clocks functionality"
+  bug: "493645457"
+}
+
+flag {
     name: "enable_home_delay"
     namespace: "systemui"
     description: "Enables fix that exposes signal to notify the completion of the RRO loading."
@@ -124,6 +131,16 @@ flag {
     namespace: "systemui"
     description: "Flag for enabling the photo shuffle feature"
     bug: "445051119"
+}
+
+flag {
+    name: "selective_dialog_taskbar_stash"
+    namespace: "systemui"
+    description: "Allows SystemUI dialogs to selectively control taskbar stashing behavior."
+    bug: "386871258"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }
 
 flag {

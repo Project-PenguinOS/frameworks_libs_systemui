@@ -34,7 +34,6 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 
 /**
@@ -229,12 +228,18 @@ constructor(
                     lifecycleAllowedDisplayIds.intersect(connectedDisplays)
                 }
             }
-            .map { it.ifEmpty { setOf(DEFAULT_DISPLAY) } }
             .stateInTraced(
-                "allowed displays for $debugName",
-                bgApplicationScope,
-                SharingStarted.WhileSubscribed(),
-                setOf(DEFAULT_DISPLAY),
+                name = "allowed displays for $debugName",
+                scope = bgApplicationScope,
+                started = SharingStarted.WhileSubscribed(),
+                initialValue =
+                    if (lifecycleManager == null) {
+                        displayRepository.displayIds.value
+                    } else {
+                        displayRepository.displayIds.value.intersect(
+                            lifecycleManager.displayIds.value
+                        )
+                    },
             )
 
     init {
@@ -274,13 +279,16 @@ constructor(
     }
 
     private fun removeInstances(toRemove: Set<Int>) {
-        toRemove.forEach { displayId ->
-            log("destroying instance for displayId=$displayId.")
-            t.traceSyncAndAsync({ "Removing instance for displayId=$displayId" }) {
-                perDisplayInstances.remove(displayId)?.let { instance ->
-                    (instanceProvider as? PerDisplayInstanceProviderWithTeardown)?.destroyInstance(
-                        instance
-                    )
+        // Synchronize to avoid race conditions with get() which also synchronizes on `this` during
+        // creation. This ensures we don't destroy an instance while it's being created/setup.
+        synchronized(this) {
+            toRemove.forEach { displayId ->
+                log("destroying instance for displayId=$displayId.")
+                t.traceSyncAndAsync({ "Removing instance for displayId=$displayId" }) {
+                    perDisplayInstances.remove(displayId)?.let { instance ->
+                        (instanceProvider as? PerDisplayInstanceProviderWithTeardown)
+                            ?.destroyInstance(instance)
+                    }
                 }
             }
         }

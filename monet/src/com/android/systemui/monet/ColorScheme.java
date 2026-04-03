@@ -152,6 +152,17 @@ public class ColorScheme {
         this(seed, darkTheme, style, 0.0);
     }
 
+    public ColorScheme(@ColorInt List<Integer> seeds, boolean darkTheme) {
+        this(seeds, darkTheme, ThemeStyle.TONAL_SPOT, 0.0, SpecVersion.SPEC_2026,
+                DynamicScheme.DEFAULT_PLATFORM);
+    }
+
+    public ColorScheme(@ColorInt List<Integer> seeds, boolean darkTheme,
+            @ThemeStyle.Type int style) {
+        this(seeds, darkTheme, style, 0.0, SpecVersion.SPEC_2026,
+                DynamicScheme.DEFAULT_PLATFORM);
+    }
+
     public ColorScheme(WallpaperColors wallpaperColors, boolean darkTheme,
             @ThemeStyle.Type int style) {
         this(getSeedColors(wallpaperColors, style != ThemeStyle.CONTENT), darkTheme, style, 0.0,
