@@ -279,16 +279,13 @@ constructor(
     }
 
     private fun removeInstances(toRemove: Set<Int>) {
-        // Synchronize to avoid race conditions with get() which also synchronizes on `this` during
-        // creation. This ensures we don't destroy an instance while it's being created/setup.
-        synchronized(this) {
-            toRemove.forEach { displayId ->
-                log("destroying instance for displayId=$displayId.")
-                t.traceSyncAndAsync({ "Removing instance for displayId=$displayId" }) {
-                    perDisplayInstances.remove(displayId)?.let { instance ->
-                        (instanceProvider as? PerDisplayInstanceProviderWithTeardown)
-                            ?.destroyInstance(instance)
-                    }
+        toRemove.forEach { displayId ->
+            log("destroying instance for displayId=$displayId.")
+            t.traceSyncAndAsync({ "Removing instance for displayId=$displayId" }) {
+                perDisplayInstances.remove(displayId)?.let { instance ->
+                    (instanceProvider as? PerDisplayInstanceProviderWithTeardown)?.destroyInstance(
+                        instance
+                    )
                 }
             }
         }
