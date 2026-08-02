@@ -38,7 +38,12 @@ class MonoThemedBitmap(
 
     override fun newDelegateFactory(info: BitmapInfo, context: Context): DelegateFactory =
         getUpdatedColors(context).let {
-            ThemedIconInfo(mono, it.iconBackgroundColor, it.iconForegroundColor)
+            ThemedIconInfo(
+                mono,
+                it.iconBackgroundColor,
+                it.iconForegroundColor,
+                ThemedIconDelegate.useNosThemedIcons(context),
+            )
         }
 
     override fun serialize(): ByteArray {

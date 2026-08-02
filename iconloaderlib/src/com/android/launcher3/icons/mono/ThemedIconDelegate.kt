@@ -16,6 +16,8 @@
 package com.android.launcher3.icons.mono
 
 import android.content.Context
+import android.content.res.Configuration
+import android.provider.Settings
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.ColorFilter
@@ -38,6 +40,7 @@ class ThemedIconDelegate(
 ) : FastBitmapDrawableDelegate {
 
     private val colorFg = constantState.colorFg
+    private val useNosIcons = constantState.useNosIcons
 
     // The foreground/monochrome icon for the app
     private val monoIcon = constantState.mono
@@ -47,6 +50,7 @@ class ThemedIconDelegate(
         }
 
     private val shapeBounds = Rect(0, 0, bitmapInfo.icon.width, bitmapInfo.icon.height)
+    private val monoBounds = Rect()
 
     init {
         paint.color = constantState.colorBg
@@ -64,7 +68,13 @@ class ThemedIconDelegate(
         canvas.resizeToContentSize(bounds, iconShape.pathSize.toFloat()) {
             clipPath(iconShape.path)
             drawPaint(paint)
-            drawBitmap(monoIcon, null, shapeBounds, monoPaint)
+            if (useNosIcons) {
+                monoBounds.set(shapeBounds)
+                monoBounds.inset(shapeBounds.width() / 4, shapeBounds.height() / 4)
+                drawBitmap(monoIcon, null, monoBounds, monoPaint)
+            } else {
+                drawBitmap(monoIcon, null, shapeBounds, monoPaint)
+            }
         }
     }
 
@@ -87,6 +97,28 @@ class ThemedIconDelegate(
         @JvmStatic
         fun getColors(context: Context): ColorList {
             val res = context.resources
+            if (useNosThemedIcons(context)) {
+                val night =
+                    (res.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+                        Configuration.UI_MODE_NIGHT_YES
+                val bg =
+                    res.getColor(
+                        if (night) android.R.color.system_neutral1_900
+                        else android.R.color.system_neutral1_100
+                    )
+                val fg =
+                    res.getColor(
+                        if (night) android.R.color.system_neutral1_50
+                        else android.R.color.system_neutral1_900
+                    )
+                return ColorList(
+                    iconBackgroundColor = bg,
+                    iconForegroundColor = fg,
+                    iconAdaptiveBackgroundColor = bg,
+                    badgeBackgroundColor = bg,
+                    badgeForegroundColor = fg,
+                )
+            }
             return ColorList(
                 iconBackgroundColor = res.getColor(R.color.themed_icon_background_color),
                 iconForegroundColor = res.getColor(R.color.themed_icon_color),
@@ -96,10 +128,26 @@ class ThemedIconDelegate(
                 badgeForegroundColor = res.getColor(R.color.themed_badge_icon_color),
             )
         }
+
+        @JvmStatic
+        fun useNosThemedIcons(context: Context): Boolean =
+            try {
+                Settings.Secure.getInt(
+                    context.contentResolver, SETTING_NOS_THEMED_ICONS, 0) != 0
+            } catch (e: Exception) {
+                false
+            }
+
+        const val SETTING_NOS_THEMED_ICONS = "nos_themed_icons"
     }
 }
 
-class ThemedIconInfo(val mono: Bitmap, val colorBg: Int, val colorFg: Int) : DelegateFactory {
+class ThemedIconInfo(
+    val mono: Bitmap,
+    val colorBg: Int,
+    val colorFg: Int,
+    val useNosIcons: Boolean = false,
+) : DelegateFactory {
 
     override fun newDelegate(
         bitmapInfo: BitmapInfo,
